@@ -19,7 +19,7 @@ void test_print_users(struct fbsql_service *s) {
    fbsql_user_list_delete(ul);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
    char dbg_buffer[1024];
    struct fbsql_statement *st;
    struct fbsql_database *db;
@@ -29,7 +29,11 @@ int main() {
    struct fbsql_user *u;
    char *buffer;
    unsigned i;
-/*   db = fbsql_database_new("localhost","C:\\Users\\Daniel Albuschat\\Database\\Test1.fdb","sysdba","masterkey","","","");
+   if( argc != 3 ) {
+      printf("Usage: test server database user password");
+      return 1;
+   }
+/*   db = fbsql_database_new(argv[0],argv[1],argv[2],argv[3],"","","");
    fbsql_database_create(db);
    printf("%s\n",fbsql_database_user(db));
    users = fbsql_database_users(db);
@@ -59,12 +63,12 @@ int main() {
 
    fbsql_transaction_commit_retaining(tr);
    fbsql_database_disconnect(db);*/
-   s = fbsql_service_new("localhost","sysdba","5735");
+   s = fbsql_service_new(argv[0],argv[2],argv[3]);
    fbsql_service_connect(s);
 //   test_print_users(s);
    u = fbsql_user_new();
    fbsql_user_set_name(u,"DANIEL2");
-   fbsql_user_set_password(u,"keines");
+   fbsql_user_set_password(u,"password");
    fbsql_service_add_user(s,u);
    test_print_users(s);
    fbsql_service_delete(s);

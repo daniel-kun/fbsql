@@ -1,7 +1,6 @@
 ;;;; CFFI-bindings for fbsql, the simple Firebird API
-
 (defpackage #:fbsql-asd
- (:use :cl :common-lisp :cffi :asdf))
+ (:use :common-lisp :asdf))
 
 (in-package :fbsql-asd)
 
@@ -15,4 +14,5 @@
  :long-description "CFFI-bindings for fbsql, the simple firebird API"
  
  :serial t
- :components ((:file "fbsql")))
+ :components 
+ ((:file "load")))

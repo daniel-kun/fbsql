@@ -1,5 +1,3 @@
-(asdf:oos 'asdf:load-op :cffi)
-
 (defpackage :fbsql-cffi
  (:use :common-lisp :cffi))
 
@@ -7,6 +5,7 @@
  (:use :common-lisp :cffi :fbsql-cffi)
  (:export 
    :with-database
+   :database-new
    :database-create
    :database-connect
    :database-inactivate
@@ -73,6 +72,5 @@
    :statement-set-float
    :statement-set-double
    :statement-set-timestamp
-   :statement-delete))
-
-(load "fbsql-cffi.lisp")
+   :statement-delete
+   :test))
