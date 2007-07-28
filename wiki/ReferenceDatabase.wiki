@@ -61,7 +61,7 @@ const char * fbsql_database_servername(struct fbsql_database *db);
 const char *fbsql_database_database(struct fbsql_database *db);
 }}}
 Somewhat misleading name. Returns the database-path you're connected to.
-===fbsql_Database_user===
+===fbsql_database_user===
 {{{
 const char *fbsql_database_user(struct fbsql_database *db);
 }}}
