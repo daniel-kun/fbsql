@@ -1,5 +1,7 @@
+(in-package :fbsql-cffi)
+
 (define-foreign-library libfbsql
-  (t (:default "libfbsql")))
+  (t (:or "libfbsql" "../libfbsql.so" "../libfbsql.dll")))
 
 (use-foreign-library libfbsql)
 
@@ -250,3 +252,327 @@
 (defcfun-export "fbsql_user_list_count"             :uint32  (users :pointer))
 (defcfun-export "fbsql_user_list_get"               :pointer (users :pointer) (index :uint32))
 (defcfun-export "fbsql_user_list_delete"            :void    (users :pointer))
+
+;;; Tests
+
+(define-condition database-error (error)
+ ((msg :initarg :error-message :reader error-message)))
+
+(defparameter *fbsql-test-error-occured* nil)
+(defparameter *fbsql-log-stream* t)
+
+(export 
+ (defun fbsql-handle-error ()
+ "If an error has occured one of the last fbsql-functions, translate it to a database-error condition"
+ (when (not (eq (fbsql-error-occured) 0))
+  (let ((error-size (fbsql-error-msg-size)))
+   (with-foreign-pointers
+    ((error-msg (+ error-size 1)))
+    (fbsql-error-msg error-msg)
+    (setf *fbsql-test-error-occured* t)
+    (error 'database-error :error-message (concatenate 'string "Exception! " (foreign-string-to-lisp error-msg))))))))
+
+(defun fbsql-print-get (result var field type)
+ "Print either result or NULL, if 0 has been returned"
+ (if (eq result 0)
+  (format t "~a: ~a~%" field (mem-ref var type))
+  (format t "~a: NULL~%" field)))
+
+(defmacro fbsql-handle-errors (&body body)
+ "Print (if :print-forms has been supplied) and then execute each form in 'body', followed by (fbsql-handle-error). 
+ An optional :ignore as the car of a form in 'body' executes the cdr of that form, but does not print it. 
+ If :print-forms is the car of a form, all following forms will be printed"
+ (let ((print-forms nil))
+  `(progn ,@(loop for b in body collect
+        (if (eq (first b) :print-forms)
+         (setf print-forms t)
+         (if (eq (first b) :ignore)
+          (fbsql-handle-errors (rest b))
+          (if print-forms
+           `(progn
+              (format t "Testing: ~a~%" ',b)
+              ,b
+              (fbsql-handle-error))
+           `(progn
+              ,b
+              (fbsql-handle-error)))))))))
+
+(defun fbsql-test-database (database db-user db-pass)
+ "Test the fbsql_database binding"
+ (let ((db-path (concatenate 'string database "test-database.fdb")))
+ (with-foreign-objects 
+  ((db :pointer) (users :pointer))
+  (with-foreign-pointers ((stat-fetches  4) (stat-marks    4) (stat-reads    4) (stat-writes        4)
+                          (count-inserts 4) (count-updates 4) (count-deletes 4) (count-read-indexes 4) 
+                          (count-read-sequential 4))
+   (fbsql-handle-errors
+    (setf db (fbsql-database-new "" db-path db-user db-pass "" "" ""))
+    (fbsql-database-create db 1)
+    (fbsql-database-inactivate db)
+    (fbsql-database-disconnect db)
+    (fbsql-database-connect db)
+    (fbsql-database-statistics db stat-fetches stat-marks stat-reads stat-writes)
+    (:ignore (format t "stat-fetches: ~a~%stat-marks:   ~a~%stat-reads:   ~a~%stat-writes:  ~a~%"
+              (mem-ref stat-fetches :uint32) (mem-ref stat-marks  :uint32)
+              (mem-ref stat-reads   :uint32) (mem-ref stat-writes :uint32)))
+    (fbsql-database-counts db count-inserts count-updates count-deletes count-read-indexes count-read-sequential)
+    (:ignore (format t "count-read-sequential: ~a~%count-inserts:         ~a~%count-updates:         ~a~%count-deletes:         ~a~%count-read-indexes:    ~a~%"
+              (mem-ref count-read-sequential :uint32) (mem-ref count-inserts :uint32)
+              (mem-ref count-updates         :uint32) (mem-ref count-deletes :uint32)
+              (mem-ref count-read-indexes    :uint32)))
+    (format t "dialect: ~a~%" (fbsql-database-dialect db))
+    (fbsql-test-db-str-result fbsql-database-servername    "servername"    servername)
+    (fbsql-test-db-str-result fbsql-database-database      "database"      database)
+    (fbsql-test-db-str-result fbsql-database-user          "user"          dbuser)
+    (fbsql-test-db-str-result fbsql-database-password      "password"      password)
+    (fbsql-test-db-str-result fbsql-database-role          "role"          role)
+    (fbsql-test-db-str-result fbsql-database-charset       "charset"       charset)
+    (fbsql-test-db-str-result fbsql-database-create-params "create-params" create-params)
+    (setf users (fbsql-database-users db))
+    (:ignore (loop for i from 0 below (fbsql-users-count users) do 
+              (format t "User: ~a~%" 
+               (fbsql-users-get users 
+                (translate-to-foreign i :uint32)))))
+    (fbsql-users-delete users)
+    (fbsql-database-drop db)
+    (fbsql-database-delete db))))))
+
+(defun fbsql-test-transaction (database db-user db-pass)
+ "Test the fbsql-transaction binding"
+ (let ((db-path (concatenate 'string database "test-transaction.fdb")))
+  (with-foreign-objects 
+   ((db :pointer) (tr :pointer))
+   (fbsql-handle-errors
+    (setf db (fbsql-database-new "" db-path db-user db-pass "" "" ""))
+    (fbsql-database-create db 1)
+    (fbsql-database-connect db)
+    (setf tr (fbsql-transaction-new db 
+              (or :read :write)
+              :concurrency
+              :wait
+              :auto-commit))
+    (fbsql-transaction-start tr)
+    (format t "Started? ~a~%" (fbsql-transaction-started tr))
+    (fbsql-transaction-commit-retaining tr)
+    (fbsql-transaction-commit tr)
+    (fbsql-transaction-delete tr)
+    (fbsql-database-drop db)
+    (fbsql-database-delete db)))))
+
+(defun fbsql-test-loop-results (st)
+ "Loop over the results of the executed select-statement used to test each field-type"
+ (with-foreign-pointers
+  ((field-id     4)
+   (field-short  2)
+   (field-int    4)
+   (field-long   8)
+   (field-float  (foreign-type-size :float))
+   (field-double (foreign-type-size :double)))
+  (loop until (eq (fbsql-statement-fetch st) 0) do
+   (fbsql-handle-errors
+    (:print-forms)
+    (fbsql-print-get (fbsql-statement-get-integer  st 1 field-id    ) field-id     "id"     :uint32)
+    (fbsql-print-get (fbsql-statement-get-short    st 2 field-short ) field-short  "short"  :uint16)
+    (fbsql-print-get (fbsql-statement-get-integer  st 3 field-int   ) field-int    "int"    :uint32)
+    (fbsql-print-get (fbsql-statement-get-longint  st 4 field-long  ) field-long   "long"   :uint64)
+    (let ((s-size (fbsql-statement-get-string-size st 5)))
+     (with-foreign-pointer (s-buf s-size)
+      (if (eq (fbsql-statement-get-string st 5 s-buf) 0)
+       (format t "string: ~a~%" (foreign-string-to-lisp s-buf))
+       (format t "string: NULL~%"))))
+    (fbsql-print-get (fbsql-statement-get-float    st 6 field-float ) field-float  "float"  :float)
+    (fbsql-print-get (fbsql-statement-get-double   st 7 field-double) field-double "double" :double)
+    (with-foreign-object
+     (timestamp :pointer)
+     (setf timestamp (fbsql-statement-get-timestamp st 8))
+     (if (not (eq timestamp 0))
+      (with-foreign-pointers
+       ((ts-year         4)
+        (ts-month        4)
+        (ts-day          4)
+        (ts-hour         4)
+        (ts-minute       4)
+        (ts-second       4)
+        (ts-tenthousands 4))
+       (fbsql-timestamp-get-datetime timestamp ts-year ts-month ts-day ts-hour ts-minute ts-second ts-tenthousands)
+       (format t "Timestamp: ~a.~a.~a ~a:~a:~a:~a~%" 
+        (mem-ref ts-day :uint32)
+        (mem-ref ts-month :uint32)
+        (mem-ref ts-year :uint32)
+        (mem-ref ts-hour :uint32)
+        (mem-ref ts-minute :uint32)
+        (mem-ref ts-second :uint32)
+        (mem-ref ts-tenthousands :uint32))
+       (fbsql-timestamp-delete timestamp))
+      (format t "Timestamp: NULL~%")))
+   (with-foreign-object
+    (blob :pointer)
+    (setf blob (fbsql-statement-get-blob st 9))
+    (if (not (eq blob 0))
+     (let ((b-size (fbsql-blob-size blob)))
+      (with-foreign-pointer
+       (b-buf (+ b-size 1))
+       (fbsql-blob-load blob b-buf)
+       (format t "Blob: ~a~%" (foreign-string-to-lisp b-buf)))
+      (fbsql-blob-delete blob))
+     (format t "Blob: NULL~%")))))))
+
+(defun fbsql-test-set-params (st db tr)
+ "Set the parameters for a test-statement used to test each field-type"
+ (fbsql-handle-errors
+  (fbsql-statement-set-integer st 1 1)
+  (fbsql-statement-set-short   st 2 10)
+  (fbsql-statement-set-integer st 3 35000)
+  (fbsql-statement-set-longint st 4 64000000000)
+  (fbsql-statement-set-string  st 5 "Hallo!")
+  (fbsql-statement-set-float   st 6 10.5)
+  (fbsql-statement-set-double  st 7 60.1d0)
+  (with-foreign-object
+   (ts :pointer)
+   (setf ts (fbsql-timestamp-new))
+   (fbsql-timestamp-set-datetime ts 2007 7 24 15 31 0 0)
+   (fbsql-statement-set-timestamp st 8 ts)
+   (fbsql-timestamp-delete ts))))
+
+(defparameter test-sql-create-table "create table test(id integer, field_short smallint, field_int integer, field_long bigint, 
+   field_string varchar(255), field_float numeric(15,2), field_double numeric(15,2), field_timestamp timestamp, field_blob blob sub_type text,
+   constraint pk_test primary key(id))")
+(defparameter test-create-generator "create generator test_gen")
+(defparameter test-sql-insert "insert into test(field_short,field_int,field_long,field_string,field_float,field_double,field_timestamp,id)values(
+  ?,?,?,?,?,?,?,?)")
+(defparameter test-sql-select "select id,field_short,field_int,field_long,field_string,field_float,field_double,field_timestamp,field_blob 
+    from test order by id")
+(defparameter test-select-param "select field_short,field_int,field_long,field_string,field_float,field_double,field_timestamp,id
+   from test where field_short=? and field_int=? and field_long=? and field_string=? and field_float=?
+   and field_double=? and field_timestamp=? and id=?")
+
+(defun fbsql-test-statement (database db-user db-pass)
+ "Test the fbsql-statement binding, includes testing of error-handling, timestamps and blobs"
+ (let ((db-path (concatenate 'string database "test-statement.fdb")))
+ (with-foreign-strings
+  ((sql-create-table test-sql-create-table)
+   (sql-create-generator test-create-generator)
+   (sql-insert test-sql-insert)
+   (sql-select test-sql-select)
+   (sql-select-param test-select-param))
+ (with-foreign-objects
+  ((db :pointer)
+   (tr :pointer)
+   (st :pointer))
+  (fbsql-handle-errors
+   (setf db (fbsql-database-new "" db-path db-user db-pass "" "" ""))
+   (fbsql-database-create db 3)
+   (fbsql-database-connect db)
+   (setf tr (fbsql-transaction-new-with-defaults db))
+   (fbsql-transaction-start tr)
+   (setf st (fbsql-statement-new db tr))
+   (fbsql-statement-prepare st sql-create-table)
+   (fbsql-statement-execute st)
+   (fbsql-statement-execute-immediate st sql-create-generator)
+   (fbsql-transaction-commit-retaining tr)
+   (fbsql-statement-prepare st sql-insert)
+   (fbsql-statement-execute st)
+   (fbsql-transaction-commit-retaining tr)
+   (fbsql-statement-prepare st sql-select)
+   (fbsql-statement-execute st)
+   (fbsql-test-loop-results st)
+   (fbsql-transaction-commit-retaining tr)
+   (fbsql-statement-prepare st sql-select-param)
+   (fbsql-test-set-params st db tr)
+   (fbsql-statement-execute st)
+   (fbsql-test-loop-results st)
+   (fbsql-transaction-commit tr)
+   (fbsql-transaction-delete tr)
+   (fbsql-database-drop db)
+   (fbsql-database-delete db))))))
+
+(export 
+ (defun fbsql-test (database db-user db-pass)
+  "Test all fbsql_*-bindings"
+  (handler-case
+   (progn
+    (fbsql-test-database database db-user db-pass)
+    (fbsql-test-transaction database db-user db-pass)
+    (fbsql-test-statement database db-user db-pass))
+   (database-error (dberr) (format t "Error! ~a~%" (error-message dberr))))))
+
+(defun fbsql-test-get-string-buffer (size-fun buf-fun user)
+ (with-foreign-object
+  (size :int32)
+  (test-forms
+  (setf size (+ (funcall size-fun user) 1))
+  (if (eq size 0)
+   nil
+   (test-forms
+   (with-foreign-pointer
+    (buffer size)
+    (funcall buf-fun user buffer)
+    (foreign-string-to-lisp buffer)))))))
+
+(defun fbsql-test-print-user (u)
+ (format t "Name: ~a~%
+Password: ~a
+Firstname: ~a
+Middlename: ~a
+Lastname: ~a
+User-ID: ~a
+Group-ID: ~a~%" 
+   (fbsql-test-get-string-buffer #'fbsql-user-get-name-size #'fbsql-user-get-name u)
+   (fbsql-test-get-string-buffer #'fbsql-user-get-name-size #'fbsql-user-get-password u)
+   (fbsql-test-get-string-buffer #'fbsql-user-get-name-size #'fbsql-user-get-firstname u)
+   (fbsql-test-get-string-buffer #'fbsql-user-get-name-size #'fbsql-user-get-middlename u)
+   (fbsql-test-get-string-buffer #'fbsql-user-get-name-size #'fbsql-user-get-lastname u)
+   (fbsql-user-get-userid u)
+   (fbsql-user-get-groupid u)))
+
+(defun fbsql-test-print-users (service)
+ (with-foreign-objects
+         ((users :pointer)
+          (user-count :uint32))
+         (test-forms
+          (format t "~%Service: ~a~%" service)
+         (setf users (fbsql-service-get-user-list service))
+         (setf user-count (fbsql-user-list-count users))
+         (loop for i from 0 below user-count do
+          (fbsql-test-print-user (fbsql-user-list-get users i))))))
+
+(defun fbsql-test-output-progress (service)
+ (with-foreign-object
+  (gbak-output :pointer)
+  (loop while (not (or (eq (setf gbak-output (fbsql-service-wait-msg service)) 0) (null gbak-output))) do 
+   (format t "~a~%" (foreign-string-to-lisp gbak-output)))))
+
+(defun fbsql-test-build-fbk (db-path)
+ (format nil "~a~a" db-path ".fbk"))
+
+(defun fbsql-test-service (server db-path db-user db-pass)
+ (handler-case
+  (with-foreign-object
+   (s :pointer)
+   (setf s (fbsql-service-new server db-user db-pass))
+   (format t "Service: ~a~%" s)
+   (if (not (eq s 0))
+    (fbsql-handle-errors
+     (test-forms
+      (fbsql-service-connect s)
+      (if (eq (fbsql-service-connected s) 0)
+       (error "Service-connection failed")
+       (test-forms
+        (fbsql-service-disconnect s)
+        (fbsql-service-connect s)
+        (with-foreign-object
+         (v-size :int32)
+         (setf v-size (fbsql-service-get-version-size s))
+         (if (> v-size 0)
+          (with-foreign-pointer
+           (version v-size)
+           (fbsql-service-get-version s version)
+           (format t "Version: ~a~%" version)
+           (format t "Version: ~a~%" (foreign-string-to-lisp version)))
+          (format t "Could not get version info.")))
+        (fbsql-test-print-users s)
+        (fbsql-service-start-backup s db-path (fbsql-test-build-fbk db-path) :verbose)
+        (fbsql-test-output-progress s)
+        (fbsql-service-start-restore s (fbsql-test-build-fbk db-path) db-path 1024 (cenum-or 'service-backup-restore-flags :verbose :replace))
+        (fbsql-test-output-progress s)))))))
+  (database-error (dberr) (format t "Error! ~a~%" (error-message dberr)))))
