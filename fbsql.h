@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef FBSQL_H_89327
 #define FBSQL_H_89327
 

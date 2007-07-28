@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef TRANSACTION_H_32367
 #define TRANSACTION_H_32367
 

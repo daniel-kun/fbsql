@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef STATEMENT_H_12748
 #define STATEMENT_H_12748
 

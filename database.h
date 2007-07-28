@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef DATABASE_H_89324
 #define DATABASE_H_89324
 

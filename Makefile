@@ -1,3 +1,6 @@
+# Copyright 2007 Daniel Albuschat
+# See license.txt for further licensing information
+
 CXX=g++
 CC=gcc
 CFLAGS=-W -Wall -g
