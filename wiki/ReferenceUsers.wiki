@@ -1,0 +1,16 @@
+#summary Users function reference
+
+= Users =
+Represents a list of multiple users, as returned from fbsql_database_get_users.
+==fbsql_users_count===
+{{{
+unsigned fbsql_users_count(struct fbsql_users *us);
+}}}
+===fbsql_users_get===
+{{{
+const char *fbsql_users_get(struct fbsql_users *us, unsigned index);
+}}}
+===fbsql_users_delete===
+{{{
+void fbsql_users_delete(struct fbsql_users *us);
+}}}
