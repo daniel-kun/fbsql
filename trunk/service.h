@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef SERVICE_H_89323
 #define SERVICE_H_89323
 

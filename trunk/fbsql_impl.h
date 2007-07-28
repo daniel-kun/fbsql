@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef FBSQL_IMPL_H_7832
 #define FBSQL_IMPL_H_7832
 #include "fbsql.h"

@@ -1,3 +1,7 @@
+/* Copyright 2007 Daniel Albuschat
+ * See license.txt for further licensing information
+ */
+
 #ifndef ERROR_H_8923
 #define ERROR_H_8923
 #include <string>

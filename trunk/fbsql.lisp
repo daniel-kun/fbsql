@@ -1,3 +1,6 @@
+;;;; Copyright 2007 Daniel Albuschat
+;;;; See license.txt for further license information
+;;;;
 ;;;; This package has been written by a lisp-beginner, so please bear with anything you find strange.
 ;;;; Feel free to contact d.albuschat@gmail.com for any comments or suggestions.
 (asdf:oos 'asdf:load-op :cffi)
