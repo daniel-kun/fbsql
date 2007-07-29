@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libfbsql", "fbsql.vcproj", "{36158686-7FD4-4C1E-BBBA-689E2DF4A13E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fbsql_test", "fbsql_test.vcproj", "{0B1DB309-FB30-49F0-9F8A-A47A87BB9915}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{36158686-7FD4-4C1E-BBBA-689E2DF4A13E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{36158686-7FD4-4C1E-BBBA-689E2DF4A13E}.Debug|Win32.Build.0 = Debug|Win32
+		{36158686-7FD4-4C1E-BBBA-689E2DF4A13E}.Release|Win32.ActiveCfg = Release|Win32
+		{36158686-7FD4-4C1E-BBBA-689E2DF4A13E}.Release|Win32.Build.0 = Release|Win32
+		{0B1DB309-FB30-49F0-9F8A-A47A87BB9915}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0B1DB309-FB30-49F0-9F8A-A47A87BB9915}.Debug|Win32.Build.0 = Debug|Win32
+		{0B1DB309-FB30-49F0-9F8A-A47A87BB9915}.Release|Win32.ActiveCfg = Release|Win32
+		{0B1DB309-FB30-49F0-9F8A-A47A87BB9915}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
